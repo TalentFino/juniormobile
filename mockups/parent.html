@@ -1,0 +1,1538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KidSafe - Parent App Mockup</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #1a1a2e;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: white;
+            text-decoration: none;
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+
+        .back-link:hover {
+            opacity: 1;
+        }
+
+        .screen-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .screen-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            background: #333;
+            color: #999;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+        }
+
+        .screen-btn.active {
+            background: #4ECDC4;
+            color: white;
+        }
+
+        .screen-btn:hover {
+            background: #444;
+        }
+
+        .screen-btn.active:hover {
+            background: #4ECDC4;
+        }
+
+        /* Phone Frame */
+        .phone-frame {
+            width: 375px;
+            height: 812px;
+            background: #000;
+            border-radius: 50px;
+            padding: 15px;
+            box-shadow: 0 25px 100px rgba(0,0,0,0.5);
+            position: relative;
+        }
+
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            background: #f5f5f5;
+            border-radius: 40px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            height: 44px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 25px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .notch {
+            width: 150px;
+            height: 30px;
+            background: #000;
+            border-radius: 0 0 20px 20px;
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+
+        /* Screen Content */
+        .screen-content {
+            display: none;
+            height: calc(100% - 44px);
+            overflow-y: auto;
+        }
+
+        .screen-content.active {
+            display: block;
+        }
+
+        /* Common Components */
+        .app-header {
+            background: #4ECDC4;
+            padding: 20px;
+            padding-top: 10px;
+        }
+
+        .app-header h1 {
+            color: white;
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+
+        .app-header p {
+            color: rgba(255,255,255,0.8);
+            font-size: 0.9rem;
+        }
+
+        .section-header {
+            padding: 15px 20px 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card {
+            background: white;
+            margin: 10px 15px;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .list-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .list-item:last-child {
+            border-bottom: none;
+        }
+
+        .list-item:hover {
+            background: #f9f9f9;
+        }
+
+        .list-item-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            margin-right: 15px;
+        }
+
+        .list-item-content {
+            flex: 1;
+        }
+
+        .list-item-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 2px;
+        }
+
+        .list-item-subtitle {
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .list-item-action {
+            color: #ccc;
+        }
+
+        /* Toggle Switch */
+        .toggle {
+            width: 50px;
+            height: 28px;
+            background: #ddd;
+            border-radius: 14px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle.active {
+            background: #4ECDC4;
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .toggle.active::after {
+            transform: translateX(22px);
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0 25px;
+            border-top: 1px solid #eee;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 0.7rem;
+            color: #888;
+            cursor: pointer;
+        }
+
+        .nav-item.active {
+            color: #4ECDC4;
+        }
+
+        .nav-item-icon {
+            font-size: 1.3rem;
+            margin-bottom: 3px;
+        }
+
+        /* ==================== DASHBOARD ==================== */
+        .dashboard {
+            background: #f5f5f5;
+            padding-bottom: 80px;
+        }
+
+        .child-card {
+            background: white;
+            margin: 15px;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        .child-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .child-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-right: 15px;
+        }
+
+        .child-info h3 {
+            font-size: 1.1rem;
+            color: #333;
+            margin-bottom: 3px;
+        }
+
+        .child-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4CAF50;
+        }
+
+        .status-dot.offline {
+            background: #ccc;
+        }
+
+        .child-battery {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9rem;
+            color: #4CAF50;
+        }
+
+        .now-playing {
+            background: linear-gradient(135deg, #667eea20, #764ba220);
+            border-radius: 12px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .now-playing-icon {
+            font-size: 1.5rem;
+        }
+
+        .now-playing-info {
+            flex: 1;
+        }
+
+        .now-playing-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #333;
+        }
+
+        .now-playing-artist {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .screen-time-bar {
+            margin-bottom: 15px;
+        }
+
+        .screen-time-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+        }
+
+        .screen-time-label {
+            color: #666;
+        }
+
+        .screen-time-value {
+            color: #333;
+            font-weight: 600;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #eee;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ECDC4, #44a08d);
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+
+        .progress-fill.warning {
+            background: linear-gradient(90deg, #FFB74D, #FF9800);
+        }
+
+        .progress-fill.danger {
+            background: linear-gradient(90deg, #FF6B6B, #f44336);
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .quick-action {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px;
+            background: #f8f8f8;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .quick-action:hover {
+            background: #f0f0f0;
+        }
+
+        .quick-action-icon {
+            font-size: 1.3rem;
+            margin-bottom: 5px;
+        }
+
+        .quick-action-label {
+            font-size: 0.7rem;
+            color: #666;
+            text-align: center;
+        }
+
+        /* ==================== WEB FILTER ==================== */
+        .web-filter {
+            background: #f5f5f5;
+            padding-bottom: 80px;
+        }
+
+        .filter-info-card {
+            background: linear-gradient(135deg, #4ECDC420, #44a08d20);
+            margin: 15px;
+            padding: 15px;
+            border-radius: 12px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .filter-info-card p {
+            font-size: 0.85rem;
+            color: #555;
+            line-height: 1.5;
+        }
+
+        .filter-option {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+        }
+
+        .filter-option:last-child {
+            border-bottom: none;
+        }
+
+        .filter-radio {
+            width: 22px;
+            height: 22px;
+            border: 2px solid #ddd;
+            border-radius: 50%;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .filter-radio.selected {
+            border-color: #4ECDC4;
+        }
+
+        .filter-radio.selected::after {
+            content: '';
+            width: 12px;
+            height: 12px;
+            background: #4ECDC4;
+            border-radius: 50%;
+        }
+
+        .filter-option-content {
+            flex: 1;
+        }
+
+        .filter-option-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 3px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-option-desc {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .recommended-badge {
+            background: #4ECDC4;
+            color: white;
+            font-size: 0.65rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .blocked-categories {
+            margin: 15px;
+        }
+
+        .blocked-categories h4 {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .category-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .category-tag {
+            background: #ffebee;
+            color: #c62828;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .limitations-card {
+            background: #fff8e1;
+            margin: 15px;
+            padding: 15px;
+            border-radius: 12px;
+        }
+
+        .limitations-card h4 {
+            font-size: 0.85rem;
+            color: #f57c00;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .limitations-card ul {
+            font-size: 0.8rem;
+            color: #e65100;
+            padding-left: 20px;
+            line-height: 1.6;
+        }
+
+        /* ==================== CALL CONTROL ==================== */
+        .call-control {
+            background: #f5f5f5;
+            padding-bottom: 80px;
+        }
+
+        .mode-selector {
+            background: white;
+            margin: 15px;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .mode-option {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+        }
+
+        .mode-option.selected {
+            background: #4ECDC410;
+        }
+
+        .approved-contacts {
+            margin: 15px;
+        }
+
+        .approved-contacts-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .approved-contacts-header h4 {
+            font-size: 0.9rem;
+            color: #333;
+        }
+
+        .add-contact-btn {
+            background: #4ECDC4;
+            color: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .contact-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .contact-card-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: white;
+            margin-right: 12px;
+        }
+
+        .contact-card-info {
+            flex: 1;
+        }
+
+        .contact-card-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .contact-card-details {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .contact-card-delete {
+            color: #f44336;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .emergency-notice {
+            background: #e8f5e9;
+            margin: 15px;
+            padding: 12px 15px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .emergency-notice p {
+            font-size: 0.85rem;
+            color: #2e7d32;
+        }
+
+        /* ==================== APP CONTROLS ==================== */
+        .app-controls {
+            background: #f5f5f5;
+            padding-bottom: 80px;
+        }
+
+        .control-section {
+            background: white;
+            margin: 15px;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .control-section-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-section-header h4 {
+            font-size: 1rem;
+            color: #333;
+        }
+
+        .control-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .control-item:last-child {
+            border-bottom: none;
+        }
+
+        .control-item-content {
+            flex: 1;
+        }
+
+        .control-item-title {
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 2px;
+        }
+
+        .control-item-desc {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        /* ==================== LOCATION ==================== */
+        .location {
+            background: #f5f5f5;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .map-container {
+            flex: 1;
+            background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .map-placeholder {
+            text-align: center;
+            color: #2e7d32;
+        }
+
+        .map-placeholder .icon {
+            font-size: 4rem;
+            margin-bottom: 10px;
+        }
+
+        .location-marker {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            animation: bounce 1s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translate(-50%, -50%); }
+            50% { transform: translate(-50%, -60%); }
+        }
+
+        .location-info {
+            background: white;
+            padding: 20px;
+            border-radius: 20px 20px 0 0;
+            margin-top: -20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .location-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .location-header h3 {
+            font-size: 1.1rem;
+            color: #333;
+        }
+
+        .location-updated {
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 15px;
+        }
+
+        .location-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .location-btn {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            background: white;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .location-btn:hover {
+            background: #f5f5f5;
+        }
+
+        /* ==================== SCREEN TIME ==================== */
+        .screen-time {
+            background: #f5f5f5;
+            padding-bottom: 80px;
+        }
+
+        .time-limit-card {
+            background: white;
+            margin: 15px;
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .time-limit-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .time-limit-header h4 {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .time-limit-value {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .time-limit-slider {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: #eee;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .time-limit-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            background: #4ECDC4;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(78, 205, 196, 0.4);
+        }
+
+        .time-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        .bedtime-card {
+            background: white;
+            margin: 15px;
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .bedtime-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .bedtime-header h4 {
+            font-size: 1rem;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bedtime-times {
+            display: flex;
+            gap: 20px;
+        }
+
+        .bedtime-time {
+            flex: 1;
+            text-align: center;
+            background: #f8f8f8;
+            padding: 15px;
+            border-radius: 12px;
+        }
+
+        .bedtime-time-label {
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .bedtime-time-value {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .usage-breakdown {
+            background: white;
+            margin: 15px;
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .usage-breakdown h4 {
+            font-size: 1rem;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .usage-app {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .usage-app:last-child {
+            margin-bottom: 0;
+        }
+
+        .usage-app-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 1.1rem;
+        }
+
+        .usage-app-info {
+            flex: 1;
+        }
+
+        .usage-app-name {
+            font-weight: 500;
+            color: #333;
+            font-size: 0.9rem;
+        }
+
+        .usage-app-bar {
+            height: 6px;
+            background: #eee;
+            border-radius: 3px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+        .usage-app-fill {
+            height: 100%;
+            border-radius: 3px;
+        }
+
+        .usage-app-time {
+            font-size: 0.85rem;
+            color: #888;
+            width: 50px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-link">← Back to Home</a>
+
+    <div class="header">
+        <h1>Parent App Mockup</h1>
+        <p>KidSafe Parental Control App</p>
+    </div>
+
+    <div class="screen-selector">
+        <button class="screen-btn active" onclick="showScreen('dashboard')">Dashboard</button>
+        <button class="screen-btn" onclick="showScreen('web-filter')">Web Filter</button>
+        <button class="screen-btn" onclick="showScreen('call-control')">Call Control</button>
+        <button class="screen-btn" onclick="showScreen('app-controls')">App Controls</button>
+        <button class="screen-btn" onclick="showScreen('location')">Location</button>
+        <button class="screen-btn" onclick="showScreen('screen-time')">Screen Time</button>
+    </div>
+
+    <div class="phone-frame">
+        <div class="phone-screen">
+            <div class="notch"></div>
+
+            <!-- Dashboard -->
+            <div id="dashboard" class="screen-content active">
+                <div class="status-bar" style="background: #4ECDC4; color: white;">
+                    <span>9:41</span>
+                    <div class="status-icons">
+                        <span>📶</span>
+                        <span>🔋 100%</span>
+                    </div>
+                </div>
+                <div class="dashboard">
+                    <div class="app-header">
+                        <h1>Good morning! 👋</h1>
+                        <p>Here's how Rahul is doing</p>
+                    </div>
+
+                    <div class="child-card">
+                        <div class="child-header">
+                            <div class="child-avatar">👦</div>
+                            <div class="child-info">
+                                <h3>Rahul's Device</h3>
+                                <div class="child-status">
+                                    <span class="status-dot"></span>
+                                    <span>Online • Kids Mode</span>
+                                </div>
+                            </div>
+                            <div class="child-battery">
+                                🔋 78%
+                            </div>
+                        </div>
+
+                        <div class="now-playing">
+                            <span class="now-playing-icon">🎵</span>
+                            <div class="now-playing-info">
+                                <div class="now-playing-title">Kesariya</div>
+                                <div class="now-playing-artist">Arijit Singh • Spotify</div>
+                            </div>
+                        </div>
+
+                        <div class="screen-time-bar">
+                            <div class="screen-time-header">
+                                <span class="screen-time-label">Screen Time Today</span>
+                                <span class="screen-time-value">1h 23m / 2h</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 70%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="quick-actions">
+                            <div class="quick-action" onclick="showScreen('location')">
+                                <span class="quick-action-icon">📍</span>
+                                <span class="quick-action-label">Location</span>
+                            </div>
+                            <div class="quick-action">
+                                <span class="quick-action-icon">🔒</span>
+                                <span class="quick-action-label">Lock</span>
+                            </div>
+                            <div class="quick-action">
+                                <span class="quick-action-icon">👶</span>
+                                <span class="quick-action-label">Kids Mode</span>
+                            </div>
+                            <div class="quick-action">
+                                <span class="quick-action-icon">📱</span>
+                                <span class="quick-action-label">Apps</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-header">Quick Settings</div>
+
+                    <div class="card">
+                        <div class="list-item" onclick="showScreen('web-filter')">
+                            <div class="list-item-icon" style="background: #e3f2fd;">🌐</div>
+                            <div class="list-item-content">
+                                <div class="list-item-title">Web Filtering</div>
+                                <div class="list-item-subtitle">Balanced protection active</div>
+                            </div>
+                            <span class="list-item-action">›</span>
+                        </div>
+                        <div class="list-item" onclick="showScreen('call-control')">
+                            <div class="list-item-icon" style="background: #e8f5e9;">📞</div>
+                            <div class="list-item-content">
+                                <div class="list-item-title">Call Control</div>
+                                <div class="list-item-subtitle">Approved contacts only</div>
+                            </div>
+                            <span class="list-item-action">›</span>
+                        </div>
+                        <div class="list-item" onclick="showScreen('screen-time')">
+                            <div class="list-item-icon" style="background: #fff3e0;">⏱️</div>
+                            <div class="list-item-content">
+                                <div class="list-item-title">Screen Time</div>
+                                <div class="list-item-subtitle">2 hours daily limit</div>
+                            </div>
+                            <span class="list-item-action">›</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bottom-nav">
+                    <div class="nav-item active">
+                        <span class="nav-item-icon">🏠</span>
+                        <span>Home</span>
+                    </div>
+                    <div class="nav-item" onclick="showScreen('location')">
+                        <span class="nav-item-icon">📍</span>
+                        <span>Location</span>
+                    </div>
+                    <div class="nav-item" onclick="showScreen('screen-time')">
+                        <span class="nav-item-icon">📊</span>
+                        <span>Activity</span>
+                    </div>
+                    <div class="nav-item">
+                        <span class="nav-item-icon">⚙️</span>
+                        <span>Settings</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Web Filter -->
+            <div id="web-filter" class="screen-content">
+                <div class="status-bar" style="background: white; color: #333;">
+                    <span>9:41</span>
+                    <div class="status-icons">
+                        <span>📶</span>
+                        <span>🔋 100%</span>
+                    </div>
+                </div>
+                <div class="web-filter">
+                    <div class="section-header" style="display: flex; align-items: center; gap: 10px;">
+                        <span onclick="showScreen('dashboard')" style="cursor: pointer;">←</span>
+                        Web Safety
+                    </div>
+
+                    <div class="filter-info-card">
+                        <span>ℹ️</span>
+                        <p>Web filtering blocks harmful websites before they load. This works with all browsers and apps.</p>
+                    </div>
+
+                    <div class="section-header">Select Filtering Level</div>
+
+                    <div class="card">
+                        <div class="filter-option">
+                            <div class="filter-radio"></div>
+                            <div class="filter-option-content">
+                                <div class="filter-option-title">Maximum Safety</div>
+                                <div class="filter-option-desc">Blocks adult, social media, games, gambling. Best for ages 5-8.</div>
+                            </div>
+                        </div>
+                        <div class="filter-option">
+                            <div class="filter-radio selected"></div>
+                            <div class="filter-option-content">
+                                <div class="filter-option-title">
+                                    Balanced
+                                    <span class="recommended-badge">Recommended</span>
+                                </div>
+                                <div class="filter-option-desc">Blocks adult content, gambling, malware. Best for ages 9-12.</div>
+                            </div>
+                        </div>
+                        <div class="filter-option">
+                            <div class="filter-radio"></div>
+                            <div class="filter-option-content">
+                                <div class="filter-option-title">Adult Content Only</div>
+                                <div class="filter-option-desc">Only blocks adult/pornographic content. Best for ages 13+.</div>
+                            </div>
+                        </div>
+                        <div class="filter-option">
+                            <div class="filter-radio"></div>
+                            <div class="filter-option-content">
+                                <div class="filter-option-title">No Filtering</div>
+                                <div class="filter-option-desc">No websites are blocked. Not recommended for children.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="blocked-categories">
+                        <h4>What's blocked with Balanced</h4>
+                        <div class="category-tags">
+                            <span class="category-tag">Adult</span>
+                            <span class="category-tag">Gambling</span>
+                            <span class="category-tag">Malware</span>
+                            <span class="category-tag">Phishing</span>
+                        </div>
+                    </div>
+
+                    <div class="limitations-card">
+                        <h4>⚠️ Limitations</h4>
+                        <ul>
+                            <li>Browsing history is not visible (Chrome keeps it private)</li>
+                            <li>Some sites may be incorrectly blocked</li>
+                            <li>VPN apps could bypass filtering</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Call Control -->
+            <div id="call-control" class="screen-content">
+                <div class="status-bar" style="background: white; color: #333;">
+                    <span>9:41</span>
+                    <div class="status-icons">
+                        <span>📶</span>
+                        <span>🔋 100%</span>
+                    </div>
+                </div>
+                <div class="call-control">
+                    <div class="section-header" style="display: flex; align-items: center; gap: 10px;">
+                        <span onclick="showScreen('dashboard')" style="cursor: pointer;">←</span>
+                        Calls & Contacts
+                    </div>
+
+                    <div class="section-header">Who can call this device?</div>
+
+                    <div class="mode-selector">
+                        <div class="mode-option selected">
+                            <div class="filter-radio selected"></div>
+                            <div class="filter-option-content">
+                                <div class="filter-option-title">Approved contacts only</div>
+                                <div class="filter-option-desc">Only the contacts you add below can call</div>
+                            </div>
+                        </div>
+                        <div class="mode-option">
+                            <div class="filter-radio"></div>
+                            <div class="filter-option-content">
+                                <div class="filter-option-title">Device contacts only</div>
+                                <div class="filter-option-desc">Anyone saved in phone contacts can call</div>
+                            </div>
+                        </div>
+                        <div class="mode-option">
+                            <div class="filter-radio"></div>
+                            <div class="filter-option-content">
+                                <div class="filter-option-title">Anyone can call</div>
+                                <div class="filter-option-desc">All calls allowed (logged for you to see)</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="approved-contacts">
+                        <div class="approved-contacts-header">
+                            <h4>Approved Contacts (5)</h4>
+                            <button class="add-contact-btn">+</button>
+                        </div>
+
+                        <div class="contact-card">
+                            <div class="contact-card-avatar" style="background: #e91e63;">M</div>
+                            <div class="contact-card-info">
+                                <div class="contact-card-name">Mom</div>
+                                <div class="contact-card-details">+91 98765 43210 • Family</div>
+                            </div>
+                            <span class="contact-card-delete">🗑️</span>
+                        </div>
+                        <div class="contact-card">
+                            <div class="contact-card-avatar" style="background: #2196f3;">D</div>
+                            <div class="contact-card-info">
+                                <div class="contact-card-name">Dad</div>
+                                <div class="contact-card-details">+91 98765 43211 • Family</div>
+                            </div>
+                            <span class="contact-card-delete">🗑️</span>
+                        </div>
+                        <div class="contact-card">
+                            <div class="contact-card-avatar" style="background: #9c27b0;">G</div>
+                            <div class="contact-card-info">
+                                <div class="contact-card-name">Grandma</div>
+                                <div class="contact-card-details">+91 98765 43212 • Family</div>
+                            </div>
+                            <span class="contact-card-delete">🗑️</span>
+                        </div>
+                    </div>
+
+                    <div class="emergency-notice">
+                        <span>✅</span>
+                        <p>Emergency numbers (100, 108, 112) are always allowed</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- App Controls -->
+            <div id="app-controls" class="screen-content">
+                <div class="status-bar" style="background: white; color: #333;">
+                    <span>9:41</span>
+                    <div class="status-icons">
+                        <span>📶</span>
+                        <span>🔋 100%</span>
+                    </div>
+                </div>
+                <div class="app-controls">
+                    <div class="section-header" style="display: flex; align-items: center; gap: 10px;">
+                        <span onclick="showScreen('dashboard')" style="cursor: pointer;">←</span>
+                        App Controls
+                    </div>
+
+                    <div class="control-section">
+                        <div class="control-section-header">
+                            <span>▶️</span>
+                            <h4>YouTube</h4>
+                        </div>
+                        <div class="control-item">
+                            <div class="control-item-content">
+                                <div class="control-item-title">Restricted Mode</div>
+                                <div class="control-item-desc">Filters out mature content</div>
+                            </div>
+                            <div class="toggle active" onclick="this.classList.toggle('active')"></div>
+                        </div>
+                    </div>
+
+                    <div class="control-section">
+                        <div class="control-section-header">
+                            <span>🌐</span>
+                            <h4>Chrome Browser</h4>
+                        </div>
+                        <div class="control-item">
+                            <div class="control-item-content">
+                                <div class="control-item-title">Block Incognito Mode</div>
+                                <div class="control-item-desc">Prevents private browsing</div>
+                            </div>
+                            <div class="toggle active" onclick="this.classList.toggle('active')"></div>
+                        </div>
+                        <div class="control-item">
+                            <div class="control-item-content">
+                                <div class="control-item-title">Force SafeSearch</div>
+                                <div class="control-item-desc">Filters explicit search results</div>
+                            </div>
+                            <div class="toggle active" onclick="this.classList.toggle('active')"></div>
+                        </div>
+                        <div class="control-item">
+                            <div class="control-item-content">
+                                <div class="control-item-title">Block Downloads</div>
+                                <div class="control-item-desc">Prevents file downloads</div>
+                            </div>
+                            <div class="toggle" onclick="this.classList.toggle('active')"></div>
+                        </div>
+                    </div>
+
+                    <div class="control-section">
+                        <div class="control-section-header">
+                            <span>🛒</span>
+                            <h4>Purchases</h4>
+                        </div>
+                        <div class="control-item">
+                            <div class="control-item-content">
+                                <div class="control-item-title">Block In-App Purchases</div>
+                                <div class="control-item-desc">Prevents buying within apps and games</div>
+                            </div>
+                            <div class="toggle active" onclick="this.classList.toggle('active')"></div>
+                        </div>
+                    </div>
+
+                    <div class="limitations-card">
+                        <h4>⚠️ What these controls can't do</h4>
+                        <ul>
+                            <li>Cannot see YouTube watch history</li>
+                            <li>Cannot see Chrome browsing history</li>
+                            <li>Cannot block specific YouTube channels</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Location -->
+            <div id="location" class="screen-content">
+                <div class="status-bar" style="background: transparent; color: #333; position: absolute; z-index: 10;">
+                    <span>9:41</span>
+                    <div class="status-icons">
+                        <span>📶</span>
+                        <span>🔋 100%</span>
+                    </div>
+                </div>
+                <div class="location">
+                    <div class="map-container">
+                        <div class="map-placeholder">
+                            <div class="icon">🗺️</div>
+                            <p>Map View</p>
+                        </div>
+                        <div class="location-marker">📍</div>
+                    </div>
+                    <div class="location-info">
+                        <div class="location-header">
+                            <span onclick="showScreen('dashboard')" style="cursor: pointer;">←</span>
+                            <h3>Current Location</h3>
+                        </div>
+                        <p class="location-updated">📍 Home • Updated 2 minutes ago</p>
+                        <div class="location-actions">
+                            <button class="location-btn">
+                                <span>🔄</span>
+                                Refresh
+                            </button>
+                            <button class="location-btn">
+                                <span>🔔</span>
+                                Play Sound
+                            </button>
+                        </div>
+                        <div style="margin-top: 15px;">
+                            <button class="location-btn" style="width: 100%;">
+                                <span>➕</span>
+                                Add Safe Zone
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Screen Time -->
+            <div id="screen-time" class="screen-content">
+                <div class="status-bar" style="background: white; color: #333;">
+                    <span>9:41</span>
+                    <div class="status-icons">
+                        <span>📶</span>
+                        <span>🔋 100%</span>
+                    </div>
+                </div>
+                <div class="screen-time">
+                    <div class="section-header" style="display: flex; align-items: center; gap: 10px;">
+                        <span onclick="showScreen('dashboard')" style="cursor: pointer;">←</span>
+                        Screen Time
+                    </div>
+
+                    <div class="time-limit-card">
+                        <div class="time-limit-header">
+                            <h4>Daily Limit</h4>
+                            <div class="time-limit-value">2 hours</div>
+                        </div>
+                        <input type="range" class="time-limit-slider" min="30" max="240" value="120">
+                        <div class="time-labels">
+                            <span>30 min</span>
+                            <span>4 hours</span>
+                        </div>
+                    </div>
+
+                    <div class="bedtime-card">
+                        <div class="bedtime-header">
+                            <h4>🌙 Bedtime</h4>
+                            <div class="toggle active" onclick="this.classList.toggle('active')"></div>
+                        </div>
+                        <div class="bedtime-times">
+                            <div class="bedtime-time">
+                                <div class="bedtime-time-label">Starts at</div>
+                                <div class="bedtime-time-value">8:30 PM</div>
+                            </div>
+                            <div class="bedtime-time">
+                                <div class="bedtime-time-label">Ends at</div>
+                                <div class="bedtime-time-value">7:00 AM</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="usage-breakdown">
+                        <h4>Today's Usage</h4>
+                        <div class="usage-app">
+                            <div class="usage-app-icon" style="background: #1DB954;">🎵</div>
+                            <div class="usage-app-info">
+                                <div class="usage-app-name">Spotify</div>
+                                <div class="usage-app-bar">
+                                    <div class="usage-app-fill" style="width: 60%; background: #1DB954;"></div>
+                                </div>
+                            </div>
+                            <div class="usage-app-time">45 min</div>
+                        </div>
+                        <div class="usage-app">
+                            <div class="usage-app-icon" style="background: #FF9800;">🎶</div>
+                            <div class="usage-app-info">
+                                <div class="usage-app-name">JioSaavn</div>
+                                <div class="usage-app-bar">
+                                    <div class="usage-app-fill" style="width: 40%; background: #FF9800;"></div>
+                                </div>
+                            </div>
+                            <div class="usage-app-time">30 min</div>
+                        </div>
+                        <div class="usage-app">
+                            <div class="usage-app-icon" style="background: #f44336;">▶️</div>
+                            <div class="usage-app-info">
+                                <div class="usage-app-name">YouTube</div>
+                                <div class="usage-app-bar">
+                                    <div class="usage-app-fill" style="width: 10%; background: #f44336;"></div>
+                                </div>
+                            </div>
+                            <div class="usage-app-time">8 min</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showScreen(screenId) {
+            // Hide all screens
+            document.querySelectorAll('.screen-content').forEach(screen => {
+                screen.classList.remove('active');
+            });
+
+            // Remove active from all buttons
+            document.querySelectorAll('.screen-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected screen
+            document.getElementById(screenId).classList.add('active');
+
+            // Activate button (find by data or just highlight current)
+            document.querySelectorAll('.screen-btn').forEach(btn => {
+                if (btn.textContent.toLowerCase().replace(' ', '-') === screenId ||
+                    btn.textContent.toLowerCase().includes(screenId.split('-')[0])) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

@@ -163,6 +163,32 @@ A companion app for parents to:
 
 ---
 
+## Regulatory Compliance (DPDP Act 2023)
+
+KidSafe must comply with India's Digital Personal Data Protection Act 2023, which has specific requirements for children's data:
+
+### Requirements
+
+| Requirement | Implementation |
+|-------------|----------------|
+| **Verifiable Parental Consent** | Phone/email OTP verification required before child data collection |
+| **Data Minimization** | Only collect essential data for core functionality |
+| **No Profiling** | No behavioral profiling or targeted advertising for children |
+| **Data Localization** | All data stored in India (Firebase asia-south1) |
+| **Right to Erasure** | Parents can delete all child data at any time |
+| **Transparent Processing** | Clear privacy policy explaining data usage |
+
+### Penalties
+
+Non-compliance can result in penalties up to **₹250 Crore**. This is a critical business risk that must be mitigated through:
+
+1. Legal review of privacy policy
+2. Data Processing Agreement (DPA) with Firebase/Google
+3. Regular compliance audits
+4. Minimal data collection approach
+
+---
+
 ## Constraints & Assumptions
 
 ### Technical Constraints
@@ -171,6 +197,7 @@ A companion app for parents to:
 2. **Samsung Galaxy A05** as primary device (tested, certified)
 3. **Requires internet** for remote features to work
 4. **Device Owner mode** requires factory reset to remove
+5. **DPDP Act compliance** required for child data handling
 
 ### Business Constraints
 
@@ -178,6 +205,7 @@ A companion app for parents to:
 2. **Timeline**: 100 days to first sale
 3. **Team**: 1 Android dev, 1 Flutter dev, 1 founder
 4. **Geography**: India only for MVP
+5. **Regulatory**: DPDP Act 2023 compliance mandatory
 
 ### Assumptions
 
@@ -185,6 +213,7 @@ A companion app for parents to:
 2. Subscription value is clear enough to retain users
 3. Device Owner mode works reliably on Samsung A05
 4. Firebase costs remain manageable at scale
+5. Parental consent mechanism is legally sufficient
 
 ---
 

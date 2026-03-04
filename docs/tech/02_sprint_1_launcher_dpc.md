@@ -296,22 +296,30 @@ class LauncherPreferences @Inject constructor(
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
 
-    private val securePrefs: SharedPreferences = EncryptedSharedPreferences.create(
-        context,
-        "kidtunes_secure_prefs",
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-    )
+    // SECURE STORAGE: For sensitive data (PIN, tokens, credentials)
+    private val securePrefs: SharedPreferences by lazy {
+        EncryptedSharedPreferences.create(
+            context,
+            "kidtunes_secure_prefs",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
 
-    private val prefs: SharedPreferences = context.getSharedPreferences(
-        "kidtunes_prefs",
-        Context.MODE_PRIVATE
-    )
+    // REGULAR STORAGE: For non-sensitive settings (UI state, preferences)
+    private val prefs: SharedPreferences by lazy {
+        context.getSharedPreferences("kidtunes_prefs", Context.MODE_PRIVATE)
+    }
 
     companion object {
-        private const val KEY_KIDS_MODE = "kids_mode"
+        // SECURE keys (use securePrefs)
         private const val KEY_PIN = "pin"
+        private const val KEY_DEVICE_TOKEN = "device_token"
+        private const val KEY_PARENT_ID = "parent_id"
+
+        // NON-SENSITIVE keys (use regular prefs)
+        private const val KEY_KIDS_MODE = "kids_mode"
         private const val KEY_DEVICE_ID = "device_id"
         private const val KEY_PAIRED = "is_paired"
         private const val KEY_CHILD_NAME = "child_name"
@@ -319,20 +327,32 @@ class LauncherPreferences @Inject constructor(
         private const val KEY_DAILY_LIMIT_MINUTES = "daily_limit_minutes"
     }
 
-    // Mode
-    fun isKidsMode(): Boolean = prefs.getBoolean(KEY_KIDS_MODE, true)
-    fun setKidsMode(enabled: Boolean) = prefs.edit { putBoolean(KEY_KIDS_MODE, enabled) }
+    // ========== SECURE DATA (Encrypted) ==========
 
     // PIN (stored encrypted)
     fun getPin(): String? = securePrefs.getString(KEY_PIN, null)
     fun setPin(pin: String) = securePrefs.edit { putString(KEY_PIN, pin) }
     fun hasPin(): Boolean = getPin() != null
 
-    // Device ID
+    // Device Token (stored encrypted)
+    fun getDeviceToken(): String? = securePrefs.getString(KEY_DEVICE_TOKEN, null)
+    fun setDeviceToken(token: String) = securePrefs.edit { putString(KEY_DEVICE_TOKEN, token) }
+
+    // Parent ID (stored encrypted)
+    fun getParentId(): String? = securePrefs.getString(KEY_PARENT_ID, null)
+    fun setParentId(id: String) = securePrefs.edit { putString(KEY_PARENT_ID, id) }
+
+    // ========== NON-SENSITIVE DATA (Regular) ==========
+
+    // Mode
+    fun isKidsMode(): Boolean = prefs.getBoolean(KEY_KIDS_MODE, true)
+    fun setKidsMode(enabled: Boolean) = prefs.edit { putBoolean(KEY_KIDS_MODE, enabled) }
+
+    // Device ID (not secret - visible in UI)
     fun getDeviceId(): String? = prefs.getString(KEY_DEVICE_ID, null)
     fun setDeviceId(id: String) = prefs.edit { putString(KEY_DEVICE_ID, id) }
 
-    // Pairing
+    // Pairing status
     fun isPaired(): Boolean = prefs.getBoolean(KEY_PAIRED, false)
     fun setPaired(paired: Boolean) = prefs.edit { putBoolean(KEY_PAIRED, paired) }
 
@@ -392,7 +412,129 @@ object AppModule {
     ): AppWhitelistManager {
         return AppWhitelistManager(context, preferences)
     }
+
+    @Provides
+    @Singleton
+    fun provideImageLoader(@ApplicationContext context: Context): coil.ImageLoader {
+        return coil.ImageLoader.Builder(context)
+            .diskCache {
+                coil.disk.DiskCache.Builder()
+                    .directory(context.cacheDir.resolve("app_icons"))
+                    .maxSizePercent(0.02) // 2% of disk space
+                    .build()
+            }
+            .memoryCache {
+                coil.memory.MemoryCache.Builder(context)
+                    .maxSizePercent(0.15) // 15% of memory
+                    .build()
+            }
+            .crossfade(true)
+            .build()
+    }
 }
+```
+
+##### Task E02-S01-T07: Create Result Utility for Error Handling
+**Time**: 30 minutes
+
+Create `app/src/main/java/com/kidtunes/launcher/core/util/Result.kt`:
+
+```kotlin
+package com.kidtunes.launcher.core.util
+
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+
+/**
+ * A sealed class for handling operation results consistently.
+ * Use this throughout the codebase for consistent error handling.
+ */
+sealed class Result<out T> {
+    data class Success<T>(val data: T) : Result<T>()
+    data class Error(val exception: Throwable, val message: String? = null) : Result<Nothing>()
+    object Loading : Result<Nothing>()
+
+    val isSuccess get() = this is Success
+    val isError get() = this is Error
+    val isLoading get() = this is Loading
+
+    fun getOrNull(): T? = (this as? Success)?.data
+    fun exceptionOrNull(): Throwable? = (this as? Error)?.exception
+
+    inline fun <R> map(transform: (T) -> R): Result<R> = when (this) {
+        is Success -> Success(transform(data))
+        is Error -> this
+        is Loading -> Loading
+    }
+
+    inline fun onSuccess(action: (T) -> Unit): Result<T> {
+        if (this is Success) action(data)
+        return this
+    }
+
+    inline fun onError(action: (Throwable, String?) -> Unit): Result<T> {
+        if (this is Error) action(exception, message)
+        return this
+    }
+
+    inline fun onLoading(action: () -> Unit): Result<T> {
+        if (this is Loading) action()
+        return this
+    }
+}
+
+/**
+ * Wrap a suspending operation in Result for safe execution.
+ */
+suspend fun <T> safeCall(
+    errorMessage: String = "Operation failed",
+    block: suspend () -> T
+): Result<T> {
+    return try {
+        Result.Success(block())
+    } catch (e: Exception) {
+        Result.Error(e, errorMessage)
+    }
+}
+
+/**
+ * Convert a Flow to emit Result values.
+ */
+fun <T> Flow<T>.asResult(): Flow<Result<T>> = flow {
+    emit(Result.Loading)
+    try {
+        collect { emit(Result.Success(it)) }
+    } catch (e: Exception) {
+        emit(Result.Error(e))
+    }
+}
+```
+
+**Usage Examples:**
+
+```kotlin
+// In Repository
+suspend fun fetchApps(): Result<List<AppInfo>> = safeCall("Failed to fetch apps") {
+    whitelistManager.getWhitelistedApps().first()
+}
+
+// In ViewModel
+viewModelScope.launch {
+    repository.fetchApps()
+        .onSuccess { apps -> _uiState.value = UiState.Success(apps) }
+        .onError { e, msg -> _uiState.value = UiState.Error(msg ?: e.message) }
+}
+
+// With Flow
+repository.observeApps()
+    .asResult()
+    .collect { result ->
+        when (result) {
+            is Result.Loading -> showLoading()
+            is Result.Success -> showApps(result.data)
+            is Result.Error -> showError(result.message)
+        }
+    }
 ```
 
 ---
@@ -2136,6 +2278,315 @@ class PolicyManager(private val context: Context) {
 
 ---
 
+### Story E03-S02: Security Validation
+**Points**: 5
+**Owner**: Android Developer
+**Priority**: P0
+
+#### Description
+Implement security validation to detect tampered, rooted, or compromised devices.
+
+#### Acceptance Criteria
+- [ ] Play Integrity API integration working
+- [ ] Root detection catches common methods
+- [ ] Security status synced to parent app
+- [ ] Tamper attempts logged
+
+#### Tasks
+
+##### Task E03-S02-T01: Create SecurityValidator
+**Time**: 2 hours
+
+Create `app/src/main/java/com/kidtunes/dpc/security/SecurityValidator.kt`:
+
+```kotlin
+package com.kidtunes.dpc.security
+
+import android.content.Context
+import android.os.Build
+import android.provider.Settings
+import com.google.android.play.core.integrity.IntegrityManagerFactory
+import com.google.android.play.core.integrity.IntegrityTokenRequest
+import kotlinx.coroutines.suspendCancellableCoroutine
+import java.io.File
+import kotlin.coroutines.resume
+
+class SecurityValidator(private val context: Context) {
+
+    data class SecurityStatus(
+        val isSecure: Boolean,
+        val isRooted: Boolean,
+        val isEmulator: Boolean,
+        val isDebuggingEnabled: Boolean,
+        val isUnknownSourcesEnabled: Boolean,
+        val playIntegrityPassed: Boolean?,
+        val failureReasons: List<String>
+    )
+
+    suspend fun validateDevice(): SecurityStatus {
+        val failures = mutableListOf<String>()
+
+        val isRooted = checkRoot()
+        if (isRooted) failures.add("Device appears to be rooted")
+
+        val isEmulator = checkEmulator()
+        if (isEmulator) failures.add("Running on emulator")
+
+        val isDebugging = checkDebuggingEnabled()
+        if (isDebugging) failures.add("USB debugging enabled")
+
+        val isUnknownSources = checkUnknownSourcesEnabled()
+        if (isUnknownSources) failures.add("Unknown sources enabled")
+
+        val playIntegrity = checkPlayIntegrity()
+        if (playIntegrity == false) failures.add("Play Integrity check failed")
+
+        return SecurityStatus(
+            isSecure = failures.isEmpty(),
+            isRooted = isRooted,
+            isEmulator = isEmulator,
+            isDebuggingEnabled = isDebugging,
+            isUnknownSourcesEnabled = isUnknownSources,
+            playIntegrityPassed = playIntegrity,
+            failureReasons = failures
+        )
+    }
+
+    private fun checkRoot(): Boolean {
+        val rootIndicators = listOf(
+            // Common root paths
+            "/system/app/Superuser.apk",
+            "/sbin/su",
+            "/system/bin/su",
+            "/system/xbin/su",
+            "/data/local/xbin/su",
+            "/data/local/bin/su",
+            "/system/sd/xbin/su",
+            "/system/bin/failsafe/su",
+            "/data/local/su",
+            // Magisk paths
+            "/sbin/.magisk",
+            "/cache/.disable_magisk",
+            "/dev/.magisk.unblock",
+            // Other root indicators
+            "/system/etc/init.d",
+            "/system/bin/.ext/.su",
+            "/system/usr/we-need-root"
+        )
+
+        for (path in rootIndicators) {
+            if (File(path).exists()) return true
+        }
+
+        // Check for su binary
+        try {
+            val process = Runtime.getRuntime().exec(arrayOf("which", "su"))
+            val result = process.inputStream.bufferedReader().readText()
+            if (result.isNotEmpty()) return true
+        } catch (e: Exception) {
+            // Ignore - su not found
+        }
+
+        // Check for Magisk Manager
+        val magiskPackages = listOf(
+            "com.topjohnwu.magisk",
+            "io.github.vvb2060.magisk"
+        )
+        for (pkg in magiskPackages) {
+            try {
+                context.packageManager.getPackageInfo(pkg, 0)
+                return true
+            } catch (e: Exception) {
+                // Package not found
+            }
+        }
+
+        return false
+    }
+
+    private fun checkEmulator(): Boolean {
+        return (Build.FINGERPRINT.startsWith("generic")
+                || Build.FINGERPRINT.startsWith("unknown")
+                || Build.MODEL.contains("google_sdk")
+                || Build.MODEL.contains("Emulator")
+                || Build.MODEL.contains("Android SDK built for x86")
+                || Build.MANUFACTURER.contains("Genymotion")
+                || (Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic"))
+                || Build.PRODUCT == "google_sdk"
+                || Build.HARDWARE.contains("goldfish")
+                || Build.HARDWARE.contains("ranchu"))
+    }
+
+    private fun checkDebuggingEnabled(): Boolean {
+        return Settings.Secure.getInt(
+            context.contentResolver,
+            Settings.Global.ADB_ENABLED,
+            0
+        ) == 1
+    }
+
+    private fun checkUnknownSourcesEnabled(): Boolean {
+        return try {
+            Settings.Secure.getInt(
+                context.contentResolver,
+                Settings.Secure.INSTALL_NON_MARKET_APPS,
+                0
+            ) == 1
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private suspend fun checkPlayIntegrity(): Boolean? {
+        return try {
+            suspendCancellableCoroutine { continuation ->
+                val integrityManager = IntegrityManagerFactory.create(context)
+
+                // Nonce should come from your server
+                val nonce = generateNonce()
+
+                val integrityRequest = IntegrityTokenRequest.builder()
+                    .setNonce(nonce)
+                    .build()
+
+                integrityManager.requestIntegrityToken(integrityRequest)
+                    .addOnSuccessListener { response ->
+                        // Token should be sent to server for verification
+                        // For MVP, we'll just check if we got a token
+                        val token = response.token()
+                        continuation.resume(token.isNotEmpty())
+                    }
+                    .addOnFailureListener { e ->
+                        // Failed to get integrity token
+                        continuation.resume(false)
+                    }
+            }
+        } catch (e: Exception) {
+            null // Unable to check
+        }
+    }
+
+    private fun generateNonce(): String {
+        // In production, this should come from your server
+        val bytes = ByteArray(32)
+        java.security.SecureRandom().nextBytes(bytes)
+        return android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+    }
+}
+```
+
+##### Task E03-S02-T02: Add Play Integrity Dependency
+**Time**: 10 minutes
+
+Add to `build.gradle.kts`:
+```kotlin
+dependencies {
+    implementation("com.google.android.play:integrity:1.3.0")
+}
+```
+
+##### Task E03-S02-T03: Create SecurityService
+**Time**: 45 minutes
+
+Create `app/src/main/java/com/kidtunes/dpc/security/SecurityService.kt`:
+
+```kotlin
+package com.kidtunes.dpc.security
+
+import android.content.Context
+import androidx.work.CoroutineWorker
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.WorkerParameters
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.util.concurrent.TimeUnit
+
+class SecurityCheckWorker(
+    context: Context,
+    params: WorkerParameters
+) : CoroutineWorker(context, params) {
+
+    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        try {
+            val validator = SecurityValidator(applicationContext)
+            val status = validator.validateDevice()
+
+            // Report to Firebase
+            reportSecurityStatus(status)
+
+            if (!status.isSecure) {
+                // Log security event
+                logSecurityEvent(status)
+            }
+
+            Result.success()
+        } catch (e: Exception) {
+            Result.retry()
+        }
+    }
+
+    private suspend fun reportSecurityStatus(status: SecurityValidator.SecurityStatus) {
+        val deviceId = getDeviceId() ?: return
+
+        val data = mapOf(
+            "isSecure" to status.isSecure,
+            "isRooted" to status.isRooted,
+            "isEmulator" to status.isEmulator,
+            "isDebuggingEnabled" to status.isDebuggingEnabled,
+            "playIntegrityPassed" to status.playIntegrityPassed,
+            "failureReasons" to status.failureReasons,
+            "checkedAt" to com.google.firebase.Timestamp.now()
+        )
+
+        FirebaseFirestore.getInstance()
+            .collection("devices")
+            .document(deviceId)
+            .update("securityStatus", data)
+    }
+
+    private suspend fun logSecurityEvent(status: SecurityValidator.SecurityStatus) {
+        val deviceId = getDeviceId() ?: return
+
+        val event = mapOf(
+            "type" to "security_warning",
+            "deviceId" to deviceId,
+            "reasons" to status.failureReasons,
+            "timestamp" to com.google.firebase.Timestamp.now()
+        )
+
+        FirebaseFirestore.getInstance()
+            .collection("security_events")
+            .add(event)
+    }
+
+    private fun getDeviceId(): String? {
+        return applicationContext.getSharedPreferences("kidtunes_prefs", Context.MODE_PRIVATE)
+            .getString("device_id", null)
+    }
+
+    companion object {
+        private const val WORK_NAME = "security_check"
+
+        fun schedule(context: Context) {
+            val request = PeriodicWorkRequestBuilder<SecurityCheckWorker>(
+                6, TimeUnit.HOURS // Check every 6 hours
+            ).build()
+
+            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                WORK_NAME,
+                ExistingPeriodicWorkPolicy.KEEP,
+                request
+            )
+        }
+    }
+}
+```
+
+---
+
 ## Sprint 1 Checklist
 
 ### Days 8-10: Launcher Foundation
@@ -2143,7 +2594,9 @@ class PolicyManager(private val context: Context) {
 - [ ] AndroidManifest configured
 - [ ] LauncherActivity handles HOME intent
 - [ ] Can be set as default launcher
-- [ ] LauncherPreferences working
+- [ ] LauncherPreferences working (secure + regular split)
+- [ ] **Result utility class created** (error handling)
+- [ ] **ImageLoader configured with caching** (Coil)
 
 ### Days 11-12: Kids Mode
 - [ ] KidsModeFragment created
@@ -2172,6 +2625,13 @@ class PolicyManager(private val context: Context) {
 - [ ] Device Admin Receiver works
 - [ ] PolicyManager created
 
+### Security Validation (Add to Days 16-17)
+- [ ] SecurityValidator created
+- [ ] Root detection working
+- [ ] Play Integrity API integrated
+- [ ] Security status syncing to Firebase
+- [ ] SecurityCheckWorker scheduled
+
 ---
 
 ## Sprint 1 Deliverables
@@ -2182,4 +2642,5 @@ class PolicyManager(private val context: Context) {
 4. ✅ Mode switching with PIN
 5. ✅ App whitelist filtering
 6. ✅ DPC foundation ready
-7. ✅ Ready for Firebase integration in Sprint 2
+7. ✅ Security validation (root detection, Play Integrity)
+8. ✅ Ready for Firebase integration in Sprint 2

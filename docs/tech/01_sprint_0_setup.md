@@ -680,7 +680,55 @@ Reset device and complete normal setup (non-Device Owner) for app testing:
 5. Repeat for JioSaavn and Amazon Music
 6. Document any issues
 
-##### Task E01-S04-T07: Create Device Validation Report
+##### Task E01-S04-T07: Day 6 Contingency Plan (CRITICAL)
+**Time**: On-demand if needed
+
+If Device Owner mode fails on Samsung Galaxy A05:
+
+**Immediate Actions (within 4 hours):**
+1. Test on Samsung Galaxy A06 (next model)
+2. Test on Redmi Note 12 (alternative budget device)
+3. Check for Samsung-specific Knox restrictions
+
+**Root Cause Analysis:**
+- Check Android version (must be 8.0+)
+- Check if device was previously enrolled in MDM
+- Check if Google Play Protect is blocking
+- Try ADB provisioning method instead of QR:
+  ```bash
+  # ADB provisioning as alternative
+  adb shell dpm set-device-owner com.kidtunes.dpc/.DeviceAdminReceiver
+  ```
+
+**Fallback Options:**
+
+| Option | Effort | Risk |
+|--------|--------|------|
+| A. Different Samsung model | Low | Low |
+| B. Non-Samsung device (Redmi, Realme) | Low | Medium |
+| C. ADB provisioning instead of QR | Low | Low |
+| D. Profile Owner mode (less control) | Low | High |
+
+**Go/No-Go Criteria:**
+- If 2+ devices fail: Investigate Android version issues
+- If all Samsung fails: Pivot to Redmi/Realme
+- If all fail: Evaluate Profile Owner as MVP fallback
+
+**Profile Owner Fallback (Last Resort):**
+```bash
+# Profile Owner gives less control but may work if DO fails
+adb shell dpm set-profile-owner com.kidtunes.dpc/.DeviceAdminReceiver
+```
+
+Note: Profile Owner limitations:
+- Cannot prevent factory reset
+- Cannot hide system apps
+- Some restrictions may be bypassable
+- Acceptable for beta testing only
+
+---
+
+##### Task E01-S04-T08: Create Device Validation Report
 **Time**: 30 minutes
 
 Create document `docs/device_validation_report.md`:
@@ -979,10 +1027,12 @@ cd ~/projects/kidtunes/android/dpc
 - [ ] TestDPC working
 - [ ] Policy enforcement verified
 
-### Day 6
+### Day 6 (CRITICAL - Go/No-Go Decision)
 - [ ] All apps tested (Spotify, JioSaavn, etc.)
 - [ ] DRM validated
 - [ ] Device validation report complete
+- [ ] **Device Owner mode CONFIRMED working** (if fails, see Task E01-S04-T07 contingency plan)
+- [ ] Alternative device tested if primary fails
 
 ### Day 7
 - [ ] Sprint 0 review meeting

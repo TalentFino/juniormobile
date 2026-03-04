@@ -4,7 +4,9 @@
 
 | Sprint | Days | Focus | Goal |
 |--------|------|-------|------|
-| Sprint 7 | 78-100 | Production & Launch | Ready to sell |
+| Sprint 7 | 99-120 | Production & Launch | Ready to sell |
+
+> **Note**: Timeline updated to follow Sprint 6 (Days 85-98).
 
 ---
 
@@ -582,6 +584,98 @@ async function handlePaymentFailed(payment: any) {
   });
 }
 ```
+
+---
+
+### Epic 7.1B: Security Audit (CRITICAL - Days 78-82)
+
+**Story 7.1B.1: Internal Security Audit (Days 78-79)**
+
+| Check | Owner | Status |
+|-------|-------|--------|
+| All Firebase security rules reviewed | Lead Dev | ☐ |
+| ProGuard/R8 obfuscation verified | Android Dev | ☐ |
+| Certificate pinning tested | Android Dev | ☐ |
+| Root detection working | Android Dev | ☐ |
+| Play Integrity API integrated | Android Dev | ☐ |
+| All secrets in environment vars | DevOps | ☐ |
+| No debug code in release | Lead Dev | ☐ |
+| DPDP consent flow working | Full Team | ☐ |
+| EncryptedSharedPreferences for sensitive data | Android Dev | ☐ |
+| No hardcoded API keys | Code Review | ☐ |
+
+**Story 7.1B.2: External Security Audit (Days 80-82)**
+
+| Deliverable | Budget | Provider |
+|-------------|--------|----------|
+| Penetration test report | ₹75,000-1,50,000 | External security firm |
+| DPC bypass analysis | Included | Security firm |
+| Firebase rules audit | Included | Security firm |
+| APK reverse engineering test | Included | Security firm |
+| Final remediation | Internal | Team |
+
+**Focus Areas for External Audit:**
+1. Device Owner mode bypass attempts
+2. Firebase security rules effectiveness
+3. Data encryption at rest (device storage)
+4. Network traffic analysis (MITM)
+5. APK reverse engineering resistance
+6. Root/tamper detection effectiveness
+
+**Deliverable:** Security Audit Report with findings, severity ratings, and remediation timeline.
+
+---
+
+### Epic 7.1C: DPDP Act 2023 Compliance Verification (CRITICAL - Days 83-85)
+
+**Story 7.1C.1: Compliance Verification Checklist**
+
+| Requirement | Implementation | Verified | Evidence |
+|-------------|----------------|----------|----------|
+| **Verifiable Parental Consent** | | | |
+| OTP verification for parent | ☐ | ☐ | Screenshot |
+| Explicit consent checkbox | ☐ | ☐ | Screenshot |
+| Consent text reviewed by legal | ☐ | ☐ | Document |
+| Consent timestamp logged | ☐ | ☐ | Firebase record |
+| **Data Minimization** | | | |
+| Only essential data collected | ☐ | ☐ | Data map document |
+| No location without explicit opt-in | ☐ | ☐ | Feature flag config |
+| Usage data minimal (no content) | ☐ | ☐ | Schema review |
+| **No Profiling** | | | |
+| No behavioral analytics | ☐ | ☐ | Analytics audit |
+| No ad targeting | ☐ | ☐ | Code review |
+| No third-party trackers | ☐ | ☐ | Network analysis |
+| **Data Access Rights** | | | |
+| Parent can view all data | ☐ | ☐ | Export test |
+| Parent can export data | ☐ | ☐ | Export test |
+| Export in readable format | ☐ | ☐ | Sample export |
+| **Data Deletion** | | | |
+| Complete deletion works | ☐ | ☐ | Deletion test |
+| Deletion within 72 hours | ☐ | ☐ | SLA verification |
+| Firebase cleanup complete | ☐ | ☐ | Data audit post-deletion |
+| Deletion confirmation sent | ☐ | ☐ | Email test |
+
+**Story 7.1C.2: Legal Review**
+
+| Document | Reviewer | Budget | Status |
+|----------|----------|--------|--------|
+| Privacy Policy | Lawyer | ₹15,000-25,000 | ☐ |
+| Terms of Service | Lawyer | ₹10,000-15,000 | ☐ |
+| Parental Consent Form | Lawyer | Included | ☐ |
+| Data Processing Agreement | Lawyer | Included | ☐ |
+| **Total Legal Budget** | | **₹25,000-40,000** | |
+
+**Story 7.1C.3: Data Localization Verification**
+
+| Check | Expected | Actual | Status |
+|-------|----------|--------|--------|
+| Firestore region | asia-south1 | | ☐ |
+| RTDB region | asia-southeast1 | | ☐ |
+| Cloud Functions region | asia-south1 | | ☐ |
+| Storage bucket region | asia-south1 | | ☐ |
+| No data transfer outside India | Verified | | ☐ |
+
+**DPDP Violation Penalty:** Up to ₹250 Crore - This verification is non-negotiable.
 
 ---
 
@@ -1714,6 +1808,45 @@ If you need help, please let us know.
 | `proguard-rules.pro` | Created | ProGuard configuration |
 | `kidsafe_device_setup.sh` | Created | Device setup script |
 | `support_templates.md` | Created | Support response templates |
+
+---
+
+## Sprint 7 Checklist
+
+### Days 78-82: Security Audit (CRITICAL)
+- [ ] Internal security audit completed
+- [ ] Firebase security rules reviewed
+- [ ] ProGuard obfuscation verified
+- [ ] Root detection tested
+- [ ] Play Integrity API integrated
+- [ ] External security audit completed
+- [ ] All critical findings remediated
+
+### Days 83-85: DPDP Compliance (CRITICAL)
+- [ ] Parental consent flow verified (OTP + checkbox)
+- [ ] Data export feature working
+- [ ] Data deletion working (72-hour SLA)
+- [ ] Privacy policy reviewed by lawyer
+- [ ] Terms of service reviewed by lawyer
+- [ ] Data localization verified (asia-south1)
+- [ ] No third-party analytics on child data
+
+### Days 86-92: Release Build
+- [ ] Release keystore generated and secured
+- [ ] ProGuard/R8 configured
+- [ ] Release APK tested
+- [ ] Flutter app release build
+- [ ] Google Play listing prepared
+- [ ] Apple App Store listing prepared
+
+### Days 93-100: Launch Preparation
+- [ ] Firebase production project configured
+- [ ] Cloud Functions deployed
+- [ ] First 50 devices ordered
+- [ ] Device setup script working
+- [ ] Customer support channels ready
+- [ ] Website live
+- [ ] **GO/NO-GO decision made**
 
 ---
 

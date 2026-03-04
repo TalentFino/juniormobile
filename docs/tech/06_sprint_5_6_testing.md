@@ -4,12 +4,14 @@
 
 | Sprint | Days | Focus | Goal |
 |--------|------|-------|------|
-| Sprint 5 | 50-63 | Internal Testing & Bug Fixes | All features working, <5 P1 bugs |
-| Sprint 6 | 64-77 | Beta Testing & Polish | 20 beta families, NPS > 40 |
+| Sprint 5 | 71-84 | Internal Testing & Bug Fixes | All features working, <5 P1 bugs |
+| Sprint 6 | 85-98 | Beta Testing & Polish | 20 beta families, NPS > 40 |
+
+> **Note**: Timeline updated to follow Sprint 4 (Days 50-70) which now includes advanced parental controls.
 
 ---
 
-## Sprint 5: Internal Testing & Bug Fixes (Days 50-63)
+## Sprint 5: Internal Testing & Bug Fixes (Days 71-84)
 
 ### Epic 5.1: Unit Testing Setup
 
@@ -1658,7 +1660,297 @@ void main() {
 
 ---
 
-## Sprint 6: Beta Testing & Polish (Days 64-77)
+### Epic 5.6: Device Farm Testing (CRITICAL)
+
+**Story 5.6.1: Firebase Test Lab Setup**
+
+| Task | Description | Acceptance Criteria |
+|------|-------------|---------------------|
+| 5.6.1.1 | Configure Firebase Test Lab | Test Lab project configured |
+| 5.6.1.2 | Define device matrix | 5+ target devices defined |
+| 5.6.1.3 | Create CI workflow | GitHub Actions workflow running |
+| 5.6.1.4 | Run initial device tests | Tests pass on all target devices |
+
+**Firebase Test Lab Configuration:**
+
+```yaml
+# .github/workflows/device-tests.yml
+name: Device Farm Tests
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  instrumentation-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build APKs
+        run: |
+          cd android/launcher
+          ./gradlew assembleDebug assembleDebugAndroidTest
+
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GOOGLE_CREDENTIALS }}
+
+      - name: Run Firebase Test Lab
+        uses: google-github-actions/firebase-test-lab@v1
+        with:
+          projectId: kidtunes-prod
+          devices: |
+            - model: a05
+              version: 34
+              locale: en
+              orientation: portrait
+            - model: redfin
+              version: 30
+              locale: en
+            - model: oriole
+              version: 33
+              locale: en
+          timeout: 15m
+
+      - name: Upload Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: firebase-test-results/
+```
+
+**Priority Device Matrix:**
+
+| Priority | Model | Android | Reason |
+|----------|-------|---------|--------|
+| P0 | Samsung Galaxy A05 | 14 | Primary target device |
+| P1 | Samsung Galaxy A06 | 14 | Backup target device |
+| P2 | Redmi Note 12 | 13 | Popular budget device |
+| P3 | Pixel 6 | 14 | Reference device |
+| P4 | Samsung Galaxy S21 | 14 | Premium device testing |
+
+---
+
+### Epic 5.7: Security Penetration Testing (CRITICAL)
+
+**Story 5.7.1: OWASP Mobile Top 10 Testing**
+
+| Test Area | Tool/Method | Pass Criteria |
+|-----------|-------------|---------------|
+| M1: Improper Platform Usage | Manual review | No unsafe intents exposed |
+| M2: Insecure Data Storage | Frida, objection | All sensitive data encrypted |
+| M3: Insecure Communication | mitmproxy | Certificate pinning verified |
+| M4: Insecure Authentication | Manual testing | No auth bypass possible |
+| M5: Insufficient Cryptography | Code review | AES-256 for all crypto |
+| M6: Insecure Authorization | Burp Suite | No privilege escalation |
+| M7: Client Code Quality | Static analysis | No hardcoded secrets |
+| M8: Code Tampering | apktool, jadx | Integrity checks present |
+| M9: Reverse Engineering | ProGuard check | Code obfuscated |
+| M10: Extraneous Functionality | APK analysis | No debug/test code in release |
+
+**Story 5.7.2: DPC-Specific Security Tests**
+
+| Test | Method | Expected Result |
+|------|--------|-----------------|
+| Bypass Device Owner | ADB commands | Cannot bypass |
+| Uninstall DPC | Settings app | Blocked by Device Owner |
+| Disable admin | adb shell pm disable | Blocked |
+| Factory reset | Recovery mode | Requires PIN (if FRP enabled) |
+| Safe mode bypass | Boot safe mode | DPC still enforced |
+| Root detection | Magisk, frida | Detected and blocked |
+| Debug bridge bypass | ADB shell | Limited functionality |
+
+**Story 5.7.3: Firebase Security Tests**
+
+| Test | Method | Expected Result |
+|------|--------|-----------------|
+| Unauthorized data access | Direct API calls | Blocked by security rules |
+| Cross-user data access | Modified client | Blocked by rules |
+| Rate limit bypass | Automated requests | Rate limited |
+| Token manipulation | JWT tampering | Rejected |
+| Injection attacks | Malformed inputs | Sanitized/rejected |
+
+**Budget: Security Audit**
+- Internal testing (Days 60-61): Team time
+- External audit (Days 62-63): ₹50,000-1,00,000
+- Focus: DPC bypass, data security, Firebase rules
+
+---
+
+### Epic 5.8: Accessibility Testing
+
+**Story 5.8.1: Accessibility Compliance Checklist**
+
+| Check | Tool | Pass Criteria |
+|-------|------|---------------|
+| TalkBack navigation | Manual testing | All screens navigable |
+| Content descriptions | Android Lint | All interactive elements have descriptions |
+| Color contrast | Accessibility Scanner | Ratio ≥ 4.5:1 |
+| Touch targets | Android Lint | All targets ≥ 48x48dp |
+| Font scaling | Device settings | UI works at 200% scale |
+| Focus indicators | Manual testing | Visible on all focusable elements |
+
+**Kids Mode Accessibility Requirements:**
+- Extra large touch targets (120dp icons)
+- High contrast colors
+- Simple navigation (no complex gestures)
+- Audio feedback for actions (optional)
+
+---
+
+### Epic 5.9: Advanced Parental Control Tests (CRITICAL)
+
+**Story 5.9.1: Web Content Filtering Tests (F19)**
+
+| Test | Steps | Expected Result |
+|------|-------|-----------------|
+| DNS filter applies | Set filter to STRICT, try to access adult site | Site doesn't resolve |
+| Filter level changes | Switch from STRICT to OFF via parent app | Sites now accessible |
+| CleanBrowsing integration | Verify DNS is set to family-filter-dns.cleanbrowsing.org | `getprop net.dns1` shows filter DNS |
+| Categories blocked | Try accessing gambling, social media sites | All blocked in STRICT mode |
+| Safe Search enforced | Search explicit terms on Google | No explicit results |
+| Filter survives reboot | Reboot device, check filter is still active | Filter remains active |
+
+**Implementation: Content Filter Test**
+
+```kotlin
+@Test
+fun `DNS filter blocks adult content when set to STRICT`() = runTest {
+    // Arrange
+    val contentFilterManager = ContentFilterManager(context, preferences)
+
+    // Act
+    contentFilterManager.setFilterLevel(FilterLevel.STRICT)
+
+    // Assert
+    val dnsHost = Settings.Global.getString(
+        context.contentResolver,
+        "private_dns_specifier"
+    )
+    assertEquals("family-filter-dns.cleanbrowsing.org", dnsHost)
+}
+```
+
+**Story 5.9.2: Call Control Tests (F20)**
+
+| Test | Steps | Expected Result |
+|------|-------|-----------------|
+| Block unknown caller | Call from unknown number in APPROVED_ONLY mode | Call rejected |
+| Allow approved contact | Call from approved number | Call goes through |
+| Emergency bypass | Call from 100, 108, 112 | Call always allowed |
+| Parent bypass | Call from parent number | Call always allowed |
+| Call logging | Make test call | Call logged to Firebase |
+| Safe dialer shows only approved | Open safe dialer | Only approved contacts visible |
+| System dialer hidden | Try to open Google Dialer | App not found/hidden |
+
+**Implementation: Call Screening Test**
+
+```kotlin
+@Test
+fun `CallScreener blocks unapproved numbers`() = runTest {
+    // Arrange
+    val screener = KidSafeCallScreener()
+    val mockCallDetails = mockk<Call.Details>()
+    every { mockCallDetails.handle } returns Uri.parse("tel:+919999999999")
+
+    coEvery { approvedContactsRepo.isApproved(any()) } returns false
+    coEvery { approvedContactsRepo.isParentNumber(any()) } returns false
+
+    // Act
+    screener.onScreenCall(mockCallDetails)
+
+    // Assert
+    verify { screener.respondToCall(mockCallDetails, match { !it.disallowCall }) }
+}
+
+@Test
+fun `Emergency numbers always allowed`() = runTest {
+    // Arrange
+    val screener = KidSafeCallScreener()
+    val emergencyNumbers = listOf("100", "108", "112", "1098")
+
+    emergencyNumbers.forEach { number ->
+        val mockCallDetails = mockk<Call.Details>()
+        every { mockCallDetails.handle } returns Uri.parse("tel:$number")
+
+        // Act
+        screener.onScreenCall(mockCallDetails)
+
+        // Assert
+        verify { screener.respondToCall(mockCallDetails, match { !it.disallowCall }) }
+    }
+}
+```
+
+**Story 5.9.3: App Controls Tests (F22)**
+
+| Test | Steps | Expected Result |
+|------|-------|-----------------|
+| YouTube Restricted Mode | Set restricted mode, search explicit content | Explicit content filtered |
+| Chrome Incognito blocked | Try to open incognito tab in Chrome | Option not available |
+| Chrome SafeSearch | Search explicit terms in Chrome | Filtered by SafeSearch |
+| In-app purchase blocked | Try to purchase in game | Purchase requires password/blocked |
+| Settings persist | Reboot device, check app settings | All settings retained |
+| Config applied to Chrome | Check Chrome managed policies | Policies show as applied |
+
+**Implementation: Managed Config Test**
+
+```kotlin
+@Test
+fun `Chrome incognito mode blocked when configured`() = runTest {
+    // Arrange
+    val configManager = ManagedConfigManager(context)
+
+    // Act
+    configManager.configureChromeRestrictions(ChromeConfig(blockIncognito = true))
+
+    // Assert
+    val restrictions = dpm.getApplicationRestrictions(
+        adminComponent,
+        "com.android.chrome"
+    )
+    assertEquals(1, restrictions.getInt("IncognitoModeAvailability"))
+}
+
+@Test
+fun `YouTube restricted mode enabled`() = runTest {
+    // Arrange
+    val configManager = ManagedConfigManager(context)
+
+    // Act
+    configManager.configureYouTubeRestrictions(restrictedMode = true)
+
+    // Assert
+    val restrictions = dpm.getApplicationRestrictions(
+        adminComponent,
+        "com.google.android.youtube"
+    )
+    assertEquals("Strict", restrictions.getString("restrict"))
+}
+```
+
+**Story 5.9.4: End-to-End Advanced Control Tests**
+
+| Scenario | Steps | Expected Result |
+|----------|-------|-----------------|
+| Full lockdown mode | Enable STRICT filter + APPROVED_ONLY calls + YouTube restricted | All protections active |
+| Parent control flow | Parent sets controls in app, verify on device | Settings sync < 10 sec |
+| Child attempts bypass | Child tries VPN, alternate browser, etc. | Controls remain effective |
+| Offline behavior | Set controls, go offline, reboot | Controls persist offline |
+
+---
+
+## Sprint 6: Beta Testing & Polish (Days 85-98)
 
 ### Epic 6.1: Beta Recruitment
 

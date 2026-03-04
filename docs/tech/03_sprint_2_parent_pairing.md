@@ -386,9 +386,26 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/splash',
     debugLogDiagnostics: true,
     redirect: (context, state) {
+      // CRITICAL FIX: Handle loading state properly
+      // Without this, authState.valueOrNull returns null during loading,
+      // causing an unwanted redirect to login screen
+      final isLoading = authState.isLoading;
+      final hasError = authState.hasError;
       final isLoggedIn = authState.valueOrNull != null;
-      final isOnAuthRoute = state.matchedLocation.startsWith('/auth');
-      final isOnSplash = state.matchedLocation == '/splash';
+
+      final currentPath = state.matchedLocation;
+      final isOnAuthRoute = currentPath.startsWith('/auth');
+      final isOnSplash = currentPath == '/splash';
+
+      // Stay on splash while auth state is loading
+      if (isLoading) {
+        return isOnSplash ? null : '/splash';
+      }
+
+      // On error, redirect to splash (splash will handle showing error)
+      if (hasError) {
+        return isOnSplash ? null : '/splash';
+      }
 
       if (isOnSplash) return null;
 
@@ -1665,6 +1682,98 @@ Implement QR code-based device pairing between parent app and child device.
 
 #### Tasks
 
+##### Task E05-S01-T00: Create Splash Screen with Loading Handling
+**Time**: 30 minutes
+
+Create `lib/presentation/screens/splash/splash_screen.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../core/theme/app_theme.dart';
+import '../../providers/auth_provider.dart';
+
+class SplashScreen extends ConsumerWidget {
+  const SplashScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authStateProvider);
+
+    // Listen for auth state changes and navigate accordingly
+    ref.listen(authStateProvider, (previous, next) {
+      next.when(
+        data: (user) {
+          if (user != null) {
+            // User is logged in - check if onboarding complete
+            _checkOnboardingStatus(context, ref);
+          } else {
+            // User is not logged in
+            context.go('/auth/login');
+          }
+        },
+        loading: () {
+          // Stay on splash - do nothing
+        },
+        error: (error, stack) {
+          // Log error and redirect to login
+          debugPrint('Auth error: $error');
+          context.go('/auth/login');
+        },
+      );
+    });
+
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Logo
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: const Icon(
+                Icons.child_care,
+                size: 80,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Loading indicator
+            const CircularProgressIndicator(),
+
+            const SizedBox(height: 16),
+
+            // Status text
+            if (authState.isLoading)
+              const Text('Loading...')
+            else if (authState.hasError)
+              Text(
+                'Connection error. Retrying...',
+                style: TextStyle(color: AppTheme.errorRed),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _checkOnboardingStatus(BuildContext context, WidgetRef ref) async {
+    // Check if user has any children profiles
+    // If not, redirect to onboarding
+    // Otherwise, go to dashboard
+    context.go('/dashboard');
+  }
+}
+```
+
 ##### Task E05-S01-T01: Create Pairing Repository
 **Time**: 1 hour
 
@@ -1772,6 +1881,225 @@ enum PairingStatus {
   inProgress,
   completed,
   expired,
+}
+```
+
+##### Task E05-S01-T01B: Create Rate-Limited Pairing Cloud Function (SECURITY)
+**Time**: 1.5 hours
+
+Create `firebase/functions/src/pairing.ts`:
+
+```typescript
+import * as functions from 'firebase-functions';
+import * as admin from 'firebase-admin';
+import * as crypto from 'crypto';
+
+// In-memory rate limiter (use Redis for production at scale)
+const rateLimiter = new Map<string, { count: number; resetTime: number }>();
+
+const RATE_LIMIT = {
+  MAX_REQUESTS: 5,
+  WINDOW_MS: 15 * 60 * 1000, // 15 minutes
+};
+
+export const generatePairingToken = functions
+  .region('asia-south1')
+  .https.onCall(async (data, context) => {
+    // Auth check
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
+    }
+
+    const userId = context.auth.uid;
+    const { childId } = data;
+
+    if (!childId) {
+      throw new functions.https.HttpsError('invalid-argument', 'childId is required');
+    }
+
+    const now = Date.now();
+
+    // Rate limiting check
+    const userLimit = rateLimiter.get(userId);
+    if (userLimit) {
+      if (now < userLimit.resetTime) {
+        if (userLimit.count >= RATE_LIMIT.MAX_REQUESTS) {
+          const waitMinutes = Math.ceil((userLimit.resetTime - now) / 60000);
+          throw new functions.https.HttpsError(
+            'resource-exhausted',
+            `Too many pairing attempts. Try again in ${waitMinutes} minutes`
+          );
+        }
+        userLimit.count++;
+      } else {
+        rateLimiter.set(userId, { count: 1, resetTime: now + RATE_LIMIT.WINDOW_MS });
+      }
+    } else {
+      rateLimiter.set(userId, { count: 1, resetTime: now + RATE_LIMIT.WINDOW_MS });
+    }
+
+    // Generate secure token (6 chars, no confusing characters)
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No O/0/I/1/L
+    let token = '';
+    const randomBytes = crypto.randomBytes(6);
+    for (let i = 0; i < 6; i++) {
+      token += chars[randomBytes[i] % chars.length];
+    }
+
+    const expiresAt = new Date(now + 10 * 60 * 1000); // 10 minutes
+
+    // Store token in Firestore
+    await admin.firestore().collection('pairing_tokens').doc(token).set({
+      userId,
+      childId,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+      used: false,
+      attempts: 0,
+    });
+
+    return { token, expiresAt: expiresAt.toISOString() };
+  });
+
+export const validatePairingToken = functions
+  .region('asia-south1')
+  .https.onCall(async (data, context) => {
+    const { token, deviceId, deviceModel, androidVersion } = data;
+
+    if (!token || !deviceId) {
+      throw new functions.https.HttpsError('invalid-argument', 'token and deviceId required');
+    }
+
+    const tokenRef = admin.firestore().collection('pairing_tokens').doc(token);
+    const tokenDoc = await tokenRef.get();
+
+    if (!tokenDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'Invalid pairing code');
+    }
+
+    const tokenData = tokenDoc.data()!;
+
+    // Check if already used
+    if (tokenData.used) {
+      throw new functions.https.HttpsError('failed-precondition', 'Code already used');
+    }
+
+    // Check expiry
+    if (tokenData.expiresAt.toDate() < new Date()) {
+      throw new functions.https.HttpsError('failed-precondition', 'Code expired');
+    }
+
+    // Rate limit validation attempts (prevent brute force)
+    if (tokenData.attempts >= 3) {
+      throw new functions.https.HttpsError(
+        'resource-exhausted',
+        'Too many validation attempts for this code'
+      );
+    }
+
+    // Increment attempts
+    await tokenRef.update({
+      attempts: admin.firestore.FieldValue.increment(1),
+    });
+
+    // Success - mark as used and create device
+    const batch = admin.firestore().batch();
+
+    // Mark token as used
+    batch.update(tokenRef, {
+      used: true,
+      deviceId,
+      completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // Create device document
+    const deviceRef = admin.firestore().collection('devices').doc(deviceId);
+    batch.set(deviceRef, {
+      ownerId: tokenData.userId,
+      childId: tokenData.childId,
+      model: deviceModel || 'Unknown',
+      androidVersion: androidVersion || 'Unknown',
+      appVersion: '1.0.0',
+      registeredAt: admin.firestore.FieldValue.serverTimestamp(),
+      settings: {
+        kidsMode: true,
+        volumeLimit: 70,
+        dailyLimitMinutes: 120,
+        locationEnabled: false,
+      },
+      whitelist: [
+        'com.spotify.music',
+        'com.jio.saavn',
+        'com.amazon.mp3',
+        'com.android.deskclock',
+      ],
+    });
+
+    // Update child profile with device ID
+    const childRef = admin.firestore()
+      .collection('users').doc(tokenData.userId)
+      .collection('children').doc(tokenData.childId);
+    batch.update(childRef, { deviceId });
+
+    await batch.commit();
+
+    return {
+      success: true,
+      userId: tokenData.userId,
+      childId: tokenData.childId,
+    };
+  });
+```
+
+Update `firebase/functions/src/index.ts`:
+```typescript
+export { generatePairingToken, validatePairingToken } from './pairing';
+```
+
+Update parent app to use Cloud Function instead of direct Firestore:
+
+```dart
+// In PairingRepository - use Cloud Functions for rate limiting
+import 'package:cloud_functions/cloud_functions.dart';
+
+class PairingRepository {
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(region: 'asia-south1');
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  /// Generate a unique pairing token (rate-limited server-side)
+  Future<PairingToken> generatePairingToken({
+    required String userId,
+    required String childId,
+  }) async {
+    try {
+      final callable = _functions.httpsCallable('generatePairingToken');
+      final result = await callable.call({
+        'childId': childId,
+      });
+
+      final data = result.data as Map<String, dynamic>;
+      return PairingToken(
+        token: data['token'],
+        userId: userId,
+        childId: childId,
+        expiresAt: DateTime.parse(data['expiresAt']),
+      );
+    } on FirebaseFunctionsException catch (e) {
+      if (e.code == 'resource-exhausted') {
+        throw PairingException('Too many attempts. Please wait and try again.');
+      }
+      rethrow;
+    }
+  }
+
+  // ... rest of repository
+}
+
+class PairingException implements Exception {
+  final String message;
+  PairingException(this.message);
+  @override
+  String toString() => message;
 }
 ```
 
@@ -2330,6 +2658,8 @@ private class BarcodeAnalyzer(
 - [ ] Pairing token exchange
 - [ ] Firebase linking
 - [ ] Success confirmation
+- [ ] **Rate limiting Cloud Function deployed** (security)
+- [ ] Splash screen with proper loading state handling
 
 ---
 

@@ -250,20 +250,47 @@ LTV:CAC Ratio:            11:1 to 22:1
 | BIS certification | No* | Using pre-certified Samsung |
 | WPC approval | No* | Using pre-certified device |
 | Data localization | Yes | Firebase asia-south1 |
-| DPDP Act (privacy) | Yes | Privacy policy required |
+| DPDP Act (privacy) | **Critical** | Full compliance required |
 | Terms of service | Yes | Legal review required |
 
 *Required only if making custom hardware
+
+### DPDP Act 2023 Compliance (Critical)
+
+The Digital Personal Data Protection Act 2023 has specific requirements for children's data. Non-compliance can result in penalties up to **₹250 Crore**.
+
+| Requirement | Implementation | Status |
+|-------------|----------------|--------|
+| **Verifiable Parental Consent** | Phone OTP + explicit consent checkbox | Required |
+| **No Profiling of Children** | No behavioral analytics or ad targeting | Required |
+| **Data Minimization** | Collect only essential operational data | Required |
+| **Right to Erasure** | One-click complete data deletion | Required |
+| **Consent Logging** | Record consent with timestamp, IP, version | Required |
+| **Data Processing Agreement** | DPA with Firebase/Google Cloud | Required |
+| **Privacy Policy** | Clear, DPDP-compliant policy | Required |
+| **Data Breach Notification** | 72-hour notification to authorities | Required |
+
+**Compliance Checklist:**
+
+- [ ] Legal review of privacy policy (₹20,000-50,000)
+- [ ] Implement OTP-based parental consent
+- [ ] Implement consent audit logging
+- [ ] Implement data export feature
+- [ ] Implement complete data deletion
+- [ ] Set up data breach notification process
+- [ ] Review Firebase DPA coverage
+- [ ] No third-party analytics on child data
 
 ### Privacy Requirements
 
 | Requirement | Implementation |
 |-------------|----------------|
-| Parental consent | Required for <18 |
-| Data access | Parents can view/export |
-| Data deletion | Parents can delete |
+| Parental consent | OTP verification + explicit consent required |
+| Data access | Parents can view/export all child data |
+| Data deletion | Complete erasure within 72 hours |
 | Data location | India (Firebase asia-south1) |
-| Third-party sharing | None (except Firebase) |
+| Third-party sharing | None (Firebase is data processor) |
+| Retention | Usage data: 90 days, Account: until deletion |
 
 ---
 
@@ -318,7 +345,18 @@ LTV:CAC Ratio:            11:1 to 22:1
 | Samsung firmware update breaks DPC | Medium | High | Test before update, rollback |
 | Firebase costs spike | Low | Medium | Cost monitoring, optimization |
 | Play Store rejects app | Medium | Medium | Follow guidelines, appeal process |
-| Security breach | Low | Critical | Security audit, encryption |
+| Security breach | Low | Critical | Security audit, encryption, Play Integrity |
+| Device bypass/rooting | Medium | High | Play Integrity API, root detection |
+| DPDP non-compliance | Medium | Critical | Legal review, compliance audit |
+
+### Regulatory Risks
+
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+| DPDP Act violation | Medium | Critical (₹250Cr) | Proactive compliance, legal review |
+| Data breach notification failure | Low | High | Incident response plan |
+| Consent mechanism rejected | Low | High | Legal pre-approval of consent flow |
+| Cross-border data transfer | Low | Medium | Ensure asia-south1 only |
 
 ### Operational Risks
 

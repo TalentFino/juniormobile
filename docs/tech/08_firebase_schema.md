@@ -104,6 +104,8 @@ settings: {
 | `locationEnabled` | boolean | Location tracking enabled | No |
 | `volumeLimit` | number | Max volume percentage (0-100) | No |
 | `panicContacts` | array | Emergency contact phone numbers | No |
+| `familyGroupId` | string | Family group ID (for multi-device) | No |
+| `securityStatus` | map | Device security validation status | No |
 
 **DeviceInfo Map Structure:**
 
@@ -117,6 +119,20 @@ deviceInfo: {
   imei: string,            // Optional, if available
   launcherVersion: string, // "1.0.0"
   dpcVersion: string,      // "1.0.0"
+}
+```
+
+**SecurityStatus Map Structure:**
+
+```typescript
+securityStatus: {
+  isSecure: boolean,           // Overall security status
+  isRooted: boolean,           // Root detection result
+  isEmulator: boolean,         // Emulator detection
+  isDebuggingEnabled: boolean, // USB debugging status
+  playIntegrityPassed: boolean | null, // Play Integrity result
+  failureReasons: string[],    // List of security issues
+  checkedAt: timestamp,        // Last security check time
 }
 ```
 
@@ -592,7 +608,125 @@ Curated list of apps with safety ratings (admin-managed).
 
 ---
 
-### 14. Feedback Collection
+### 14. Family Groups Collection
+
+```
+/family_groups/{groupId}
+```
+
+Manages multi-device family plans (up to 4 devices).
+
+| Field | Type | Description | Required |
+|-------|------|-------------|----------|
+| `id` | string | Group ID | Yes |
+| `ownerId` | string | Parent user ID (owner) | Yes |
+| `subscriptionId` | string | Family subscription ID | Yes |
+| `name` | string | Family name (e.g., "Sharma Family") | Yes |
+| `deviceIds` | array | Device IDs in this group | Yes |
+| `maxDevices` | number | Max devices allowed (default 4) | Yes |
+| `createdAt` | timestamp | Group creation time | Yes |
+| `updatedAt` | timestamp | Last update time | Yes |
+
+**Example Document:**
+
+```json
+{
+  "id": "family_abc123",
+  "ownerId": "user_abc123",
+  "subscriptionId": "sub_family_xyz",
+  "name": "Sharma Family",
+  "deviceIds": ["device_1", "device_2", "device_3"],
+  "maxDevices": 4,
+  "createdAt": "2024-01-15T10:00:00Z",
+  "updatedAt": "2024-01-20T14:30:00Z"
+}
+```
+
+---
+
+### 15. Consent Logs Collection (DPDP Compliance)
+
+```
+/consent_logs/{consentId}
+```
+
+Audit trail for parental consent (required by DPDP Act 2023).
+
+| Field | Type | Description | Required |
+|-------|------|-------------|----------|
+| `id` | string | Consent ID | Yes |
+| `userId` | string | Parent user ID | Yes |
+| `childName` | string | Child's name | Yes |
+| `consentType` | string | initial, renewed, updated | Yes |
+| `consentVersion` | string | Privacy policy version | Yes |
+| `ipAddress` | string | IP at time of consent | Yes |
+| `userAgent` | string | Device/browser info | Yes |
+| `verificationMethod` | string | phone_otp, email_otp | Yes |
+| `verificationId` | string | OTP session ID | Yes |
+| `consentText` | string | Exact consent text shown | Yes |
+| `timestamp` | timestamp | Consent timestamp | Yes |
+| `revoked` | boolean | Whether consent was revoked | Yes |
+| `revokedAt` | timestamp | Revocation timestamp | No |
+
+**Example Document:**
+
+```json
+{
+  "id": "consent_xyz789",
+  "userId": "user_abc123",
+  "childName": "Rahul",
+  "consentType": "initial",
+  "consentVersion": "1.0.0",
+  "ipAddress": "49.36.xxx.xxx",
+  "userAgent": "KidSafe Parent App/1.0.0 (Android 14)",
+  "verificationMethod": "phone_otp",
+  "verificationId": "otp_session_123",
+  "consentText": "I consent to the collection of my child's usage data...",
+  "timestamp": "2024-01-15T10:00:00Z",
+  "revoked": false
+}
+```
+
+---
+
+### 16. Security Events Collection
+
+```
+/security_events/{eventId}
+```
+
+Logs security-related events for monitoring and alerting.
+
+| Field | Type | Description | Required |
+|-------|------|-------------|----------|
+| `id` | string | Event ID | Yes |
+| `type` | string | security_warning, tamper_detected, root_detected | Yes |
+| `deviceId` | string | Device ID | Yes |
+| `parentId` | string | Parent to notify | Yes |
+| `reasons` | array | List of security issues | Yes |
+| `severity` | string | low, medium, high, critical | Yes |
+| `acknowledged` | boolean | Parent acknowledged | Yes |
+| `acknowledgedAt` | timestamp | Acknowledgement time | No |
+| `timestamp` | timestamp | Event timestamp | Yes |
+
+**Example Document:**
+
+```json
+{
+  "id": "event_abc123",
+  "type": "security_warning",
+  "deviceId": "device_xyz789",
+  "parentId": "user_abc123",
+  "reasons": ["USB debugging enabled", "Unknown sources enabled"],
+  "severity": "medium",
+  "acknowledged": false,
+  "timestamp": "2024-01-15T14:30:00Z"
+}
+```
+
+---
+
+### 17. Feedback Collection
 
 ```
 /feedback/{feedbackId}

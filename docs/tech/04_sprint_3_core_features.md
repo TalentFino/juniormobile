@@ -1258,6 +1258,81 @@ Track app usage on child device and enforce screen time limits.
 ##### Task E08-S01-T01: Create Screen Time Service
 **Time**: 2 hours
 
+**IMPORTANT: UsageStatsManager Permission Required**
+
+The `UsageStatsManager` API requires a special permission that users must manually grant in Settings. This cannot be granted automatically. However, **Device Owner** apps CAN grant this permission programmatically.
+
+Create `app/src/main/java/com/kidtunes/launcher/util/UsageStatsPermissionChecker.kt`:
+
+```kotlin
+package com.kidtunes.launcher.util
+
+import android.app.Activity
+import android.app.AppOpsManager
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.provider.Settings
+import android.net.Uri
+
+object UsageStatsPermissionChecker {
+
+    fun hasPermission(context: Context): Boolean {
+        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOps.unsafeCheckOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                android.os.Process.myUid(),
+                context.packageName
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            appOps.checkOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                android.os.Process.myUid(),
+                context.packageName
+            )
+        }
+        return mode == AppOpsManager.MODE_ALLOWED
+    }
+
+    fun requestPermission(activity: Activity) {
+        val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+
+        // Try to deep link to our app's setting (API 29+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            intent.data = Uri.fromParts("package", activity.packageName, null)
+        }
+
+        activity.startActivity(intent)
+    }
+}
+```
+
+**Grant permission via Device Owner (in ProvisioningActivity):**
+
+```kotlin
+// In ProvisioningActivity - grant UsageStats permission via Device Owner
+private fun grantUsageStatsPermission() {
+    if (isDeviceOwner()) {
+        val dpm = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        val componentName = KidDeviceAdminReceiver.getComponentName(this)
+
+        // Device Owner can grant this permission
+        dpm.setPermissionGrantState(
+            componentName,
+            packageName,
+            Manifest.permission.PACKAGE_USAGE_STATS,
+            DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED
+        )
+    }
+}
+```
+
+---
+
 Create `app/src/main/java/com/kidtunes/launcher/services/ScreenTimeService.kt`:
 
 ```kotlin
@@ -1274,6 +1349,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.kidtunes.launcher.R
 import com.kidtunes.launcher.data.local.LauncherPreferences
 import com.kidtunes.launcher.ui.lockscreen.ScreenTimeLockActivity
+import com.kidtunes.launcher.util.UsageStatsPermissionChecker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import java.util.*
@@ -1378,6 +1454,14 @@ class ScreenTimeService : Service() {
     }
 
     private fun getTodayUsageMinutes(): Int {
+        // CRITICAL: Check permission before querying
+        if (!UsageStatsPermissionChecker.hasPermission(this)) {
+            Log.w(TAG, "Usage stats permission not granted")
+            // Permission should have been granted during provisioning
+            // If not, show notification to admin
+            return 0
+        }
+
         val calendar = Calendar.getInstance()
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
@@ -1482,11 +1566,225 @@ class ScreenTimeService : Service() {
     }
 
     companion object {
+        private const val TAG = "ScreenTimeService"
         private const val NOTIFICATION_ID = 1001
         private const val WARNING_NOTIFICATION_ID = 1002
     }
 }
 ```
+
+---
+
+##### Task E08-S01-T01B: WorkManager Alternative for Battery Optimization (RECOMMENDED)
+**Time**: 1.5 hours
+
+**Problem**: Foreground services can be killed by aggressive battery optimization on some devices (Samsung, Xiaomi, Huawei). WorkManager is more battery-efficient and has system-level guarantees.
+
+**Solution**: Use WorkManager for periodic checks, combined with AlarmManager for precise bedtime scheduling.
+
+Create `app/src/main/java/com/kidtunes/launcher/workers/ScreenTimeWorker.kt`:
+
+```kotlin
+package com.kidtunes.launcher.workers
+
+import android.content.Context
+import android.content.Intent
+import android.util.Log
+import androidx.hilt.work.HiltWorker
+import androidx.work.*
+import com.google.firebase.firestore.FirebaseFirestore
+import com.kidtunes.launcher.data.local.LauncherPreferences
+import com.kidtunes.launcher.ui.lockscreen.ScreenTimeLockActivity
+import com.kidtunes.launcher.util.UsageStatsPermissionChecker
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
+import java.text.SimpleDateFormat
+import java.util.*
+import java.util.concurrent.TimeUnit
+
+@HiltWorker
+class ScreenTimeWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val preferences: LauncherPreferences
+) : CoroutineWorker(context, params) {
+
+    private val firestore = FirebaseFirestore.getInstance()
+
+    override suspend fun doWork(): Result {
+        return try {
+            // Check screen time
+            if (!UsageStatsPermissionChecker.hasPermission(applicationContext)) {
+                Log.w(TAG, "Usage stats permission not granted")
+                return Result.success()
+            }
+
+            val usageTracker = UsageTracker(applicationContext)
+            val todayUsage = usageTracker.getTodayUsageMinutes()
+            val dailyLimit = preferences.getDailyLimitMinutes()
+
+            // Check if limit reached
+            if (todayUsage >= dailyLimit) {
+                showLimitReachedScreen()
+            } else if (todayUsage >= dailyLimit - 10) {
+                showWarningNotification(dailyLimit - todayUsage)
+            }
+
+            // Check bedtime
+            val bedtimeStart = preferences.getBedtimeStart()
+            val bedtimeEnd = preferences.getBedtimeEnd()
+            if (bedtimeStart != null && bedtimeEnd != null) {
+                if (isInBedtimeWindow(bedtimeStart, bedtimeEnd)) {
+                    showBedtimeScreen()
+                }
+            }
+
+            // Sync usage to Firebase
+            syncUsageToFirebase(usageTracker)
+
+            Result.success()
+        } catch (e: Exception) {
+            Log.e(TAG, "ScreenTimeWorker failed", e)
+            Result.retry()
+        }
+    }
+
+    private fun showLimitReachedScreen() {
+        val intent = Intent(applicationContext, ScreenTimeLockActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            putExtra("reason", "limit_reached")
+        }
+        applicationContext.startActivity(intent)
+    }
+
+    private suspend fun syncUsageToFirebase(usageTracker: UsageTracker) {
+        val deviceId = preferences.getDeviceId() ?: return
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+
+        val usageData = mapOf(
+            "date" to today,
+            "totalMinutes" to usageTracker.getTodayUsageMinutes(),
+            "apps" to usageTracker.getAppUsageToday(),
+            "updatedAt" to com.google.firebase.Timestamp.now()
+        )
+
+        firestore.collection("devices")
+            .document(deviceId)
+            .collection("usage")
+            .document(today)
+            .set(usageData, com.google.firebase.firestore.SetOptions.merge())
+    }
+
+    companion object {
+        private const val TAG = "ScreenTimeWorker"
+        private const val WORK_NAME = "screen_time_check"
+
+        fun schedule(context: Context) {
+            val constraints = Constraints.Builder()
+                .setRequiresBatteryNotLow(false) // Run even on low battery
+                .build()
+
+            // Android enforces minimum 15 minute interval for periodic work
+            val request = PeriodicWorkRequestBuilder<ScreenTimeWorker>(
+                15, TimeUnit.MINUTES
+            )
+                .setConstraints(constraints)
+                .setBackoffCriteria(
+                    BackoffPolicy.LINEAR,
+                    1, TimeUnit.MINUTES
+                )
+                .build()
+
+            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                WORK_NAME,
+                ExistingPeriodicWorkPolicy.KEEP,
+                request
+            )
+        }
+
+        // For immediate check when needed
+        fun checkNow(context: Context) {
+            val request = OneTimeWorkRequestBuilder<ScreenTimeWorker>()
+                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .build()
+
+            WorkManager.getInstance(context).enqueue(request)
+        }
+
+        fun cancel(context: Context) {
+            WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
+        }
+    }
+}
+```
+
+**For precise bedtime enforcement, use AlarmManager:**
+
+```kotlin
+// BedtimeAlarmReceiver.kt
+class BedtimeAlarmReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        when (intent.action) {
+            "BEDTIME_START" -> {
+                val lockIntent = Intent(context, BedtimeLockActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(lockIntent)
+            }
+            "BEDTIME_END" -> {
+                LocalBroadcastManager.getInstance(context)
+                    .sendBroadcast(Intent("BEDTIME_END"))
+            }
+        }
+    }
+
+    companion object {
+        fun scheduleBedtime(context: Context, startTime: String, endTime: String) {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
+            // Schedule bedtime start
+            val startIntent = Intent(context, BedtimeAlarmReceiver::class.java).apply {
+                action = "BEDTIME_START"
+            }
+            val startPendingIntent = PendingIntent.getBroadcast(
+                context, 1001, startIntent, PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val startCalendar = parseTimeToCalendar(startTime)
+
+            // Use setExactAndAllowWhileIdle for reliability on Doze mode
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                startCalendar.timeInMillis,
+                startPendingIntent
+            )
+
+            // Similar for end time...
+        }
+    }
+}
+```
+
+**Request Battery Optimization Exemption:**
+
+```kotlin
+// Call during device setup
+fun requestBatteryOptimizationExemption(context: Context) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        if (!powerManager.isIgnoringBatteryOptimizations(context.packageName)) {
+            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = Uri.parse("package:${context.packageName}")
+            }
+            context.startActivity(intent)
+        }
+    }
+}
+```
+
+**Recommendation:** Use the WorkManager approach (this task) instead of the foreground service approach to reduce battery drain and improve reliability across different device manufacturers.
+
+---
 
 ##### Task E08-S01-T02: Create Screen Time Lock Activity
 **Time**: 1 hour
@@ -1570,6 +1868,9 @@ class ScreenTimeLockActivity : AppCompatActivity() {
 - [ ] Daily limits enforced
 - [ ] Bedtime mode works
 - [ ] Usage syncs to Firebase
+- [ ] **UsageStats permission granted via Device Owner** (critical)
+- [ ] **WorkManager scheduled for battery efficiency** (optional but recommended)
+- [ ] **Battery optimization exemption requested**
 
 ---
 
